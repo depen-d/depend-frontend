@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../../components";
-import { Plus, FolderOpen } from "lucide-react";
+import { Plus, FolderOpen, CheckSquare } from "lucide-react";
 
 interface Project {
   id: string;
@@ -70,6 +70,10 @@ export default function ProjectList({ onViewProject }: ProjectListProps) {
     router.push("/projects/create");
   };
 
+  const onCreateNewTask = () => {
+    router.push("/tasks/create");
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex justify-between items-start mb-8">
@@ -80,7 +84,11 @@ export default function ProjectList({ onViewProject }: ProjectListProps) {
             progresso das tarefas.
           </p>
         </div>
-        <div className="flex">
+        <div className="flex gap-2">
+          <Button onClick={onCreateNewTask} variant="outline" className="gap-2">
+            <CheckSquare className="h-4 w-4" />
+            Nova Tarefa
+          </Button>
           <Button onClick={onCreateNewProject} className="gap-2">
             <Plus className="h-4 w-4" />
             Criar Novo Projeto
