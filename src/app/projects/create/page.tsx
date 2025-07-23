@@ -16,34 +16,35 @@ import {
   Textarea,
 } from "../../../components";
 import { useRouter } from "next/navigation";
+import axios from "axios";
+import { userId } from "@/utils";
+
+interface Project {
+  project_id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function CreateProject() {
   const router = useRouter();
 
   const [projectData, setProjectData] = useState({
-    id: "",
     name: "",
     description: "",
   });
 
   const [errors, setErrors] = useState({
-    id: "",
     name: "",
     description: "",
   });
 
   const validateForm = () => {
     const newErrors = {
-      id: "",
       name: "",
       description: "",
     };
-
-    if (!projectData.id.trim()) {
-      newErrors.id = "ID do projeto é obrigatório";
-    } else if (!/^[A-Z]{2,5}$/.test(projectData.id.trim())) {
-      newErrors.id = "ID deve ter 2-5 letras maiúsculas (ex: PROJ)";
-    }
 
     if (!projectData.name.trim()) {
       newErrors.name = "Nome do projeto é obrigatório";
@@ -57,19 +58,30 @@ export default function CreateProject() {
     return !Object.values(newErrors).some((error) => error !== "");
   };
 
+  const createProject = async () => {
+    try {
+      await axios.post<Project[]>(`http://0.0.0.0:8000/${userId}/project`, {
+        name: projectData.name,
+        description: projectData.description,
+      });
+      alert("Projeto criado com sucesso!");
+      handleCancel();
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao criar projeto. Tente novamente.");
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      console.log("Projeto criado:", projectData);
-      // TODO: Integrar com o backend
-      alert("Projeto criado com sucesso!");
-      handleCancel();
+      createProject();
     }
   };
 
   const handleCancel = () => {
-    setProjectData({ id: "", name: "", description: "" });
-    setErrors({ id: "", name: "", description: "" });
+    setProjectData({ name: "", description: "" });
+    setErrors({ name: "", description: "" });
     router.push("/");
   };
 
@@ -110,16 +122,12 @@ export default function CreateProject() {
                 <Input
                   id="project-id"
                   placeholder="ex: PROJ"
-                  value={projectData.id}
                   onChange={(e) =>
                     handleInputChange("id", e.target.value.toUpperCase())
                   }
-                  className={errors.id ? "border-destructive" : ""}
                   maxLength={5}
+                  disabled
                 />
-                {errors.id && (
-                  <p className="text-sm text-destructive">{errors.id}</p>
-                )}
                 <p className="text-xs text-muted-foreground">
                   Chave única do projeto (2-5 letras maiúsculas)
                 </p>
