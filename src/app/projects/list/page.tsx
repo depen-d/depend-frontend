@@ -63,11 +63,11 @@ export default function ProjectList() {
   };
 
   const onCreateNewProject = () => {
-    router.push("/projects/create");
+    router.push("/create");
   };
 
   const onCreateNewTask = () => {
-    router.push("/tasks/create");
+    router.push(`/tasks/create`);
   };
 
   const onProjectClick = (projectId: string) => {

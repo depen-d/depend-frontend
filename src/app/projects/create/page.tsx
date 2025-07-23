@@ -70,7 +70,7 @@ export default function CreateProject() {
   const handleCancel = () => {
     setProjectData({ id: "", name: "", description: "" });
     setErrors({ id: "", name: "", description: "" });
-    router.push("/projects/list");
+    router.push("/");
   };
 
   const handleInputChange = (field: string, value: string) => {

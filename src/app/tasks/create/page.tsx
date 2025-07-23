@@ -153,7 +153,7 @@ export default function CreateTask() {
       relatedTasks: [],
     });
     setErrors({ name: "", description: "", projectId: "" });
-    router.push("/projects/list");
+    router.push("/");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
