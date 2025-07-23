@@ -17,42 +17,37 @@ import {
   TableRow,
 } from "../../../components";
 import { Plus, FolderOpen, CheckSquare } from "lucide-react";
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { userId } from "@/utils";
 
 interface Project {
-  id: string;
+  project_id: string;
   name: string;
   description: string;
-  createdAt: string;
-  tasks: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 export default function ProjectList() {
-  // TODO: Remover mock e integrar com o backend
-  const projects: Project[] = [
-    {
-      id: "PROJ",
-      name: "Sistema de Gestão",
-      description: "Sistema para gerenciamento de recursos internos da empresa",
-      createdAt: "2025-01-15",
-      tasks: ["Tarefa 1", "Tarefa 2", "Tarefa 3"],
-    },
-    {
-      id: "WEB",
-      name: "Website Corporativo",
-      description: "Desenvolvimento do novo website institucional",
-      createdAt: "2025-01-10",
-      tasks: ["Tarefa 1", "Tarefa 2"],
-    },
-    {
-      id: "MOB",
-      name: "App Mobile",
-      description: "Aplicativo móvel para clientes",
-      createdAt: "2024-12-20",
-      tasks: ["Tarefa 3"],
-    },
-  ];
-
   const router = useRouter();
+
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get<Project[]>(
+        `http://0.0.0.0:8000/${userId}/project`
+      );
+      setProjects(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR", {
@@ -85,10 +80,16 @@ export default function ProjectList() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={onCreateNewTask} variant="outline" className="gap-2">
-            <CheckSquare className="h-4 w-4" />
-            Nova Tarefa
-          </Button>
+          {projects.length > 0 && (
+            <Button
+              onClick={onCreateNewTask}
+              variant="outline"
+              className="gap-2"
+            >
+              <CheckSquare className="h-4 w-4" />
+              Nova Tarefa
+            </Button>
+          )}
           <Button onClick={onCreateNewProject} className="gap-2">
             <Plus className="h-4 w-4" />
             Criar Novo Projeto
@@ -100,8 +101,7 @@ export default function ProjectList() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
-            {projects.length} {projects.length === 1 ? "projeto" : "projetos"}{" "}
-            encontrado(s)
+            {projects.length} projeto(s) encontrado(s)
           </CardTitle>
           <CardDescription>
             Clique em um projeto para visualizar as tarefas
@@ -115,9 +115,6 @@ export default function ProjectList() {
               <p className="text-muted-foreground mb-6">
                 Comece criando seu primeiro projeto
               </p>
-              <Button onClick={onCreateNewProject}>
-                Criar Primeiro Projeto
-              </Button>
             </div>
           ) : (
             <Table>
@@ -126,20 +123,19 @@ export default function ProjectList() {
                   <TableHead>ID</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Descrição</TableHead>
-                  <TableHead>Tarefas</TableHead>
                   <TableHead>Criado em</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {projects.map((project) => (
                   <TableRow
-                    key={project.id}
+                    key={project.project_id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => onProjectClick(project.id)}
+                    onClick={() => onProjectClick(project.project_id)}
                   >
                     <TableCell>
                       <Badge variant="outline" className="font-mono">
-                        {project.id}
+                        {project.project_id}
                       </Badge>
                     </TableCell>
                     <TableCell>{project.name}</TableCell>
@@ -148,9 +144,8 @@ export default function ProjectList() {
                         {project.description}
                       </p>
                     </TableCell>
-                    <TableCell>{project.tasks.length}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDate(project.createdAt)}
+                      {formatDate(project.created_at)}
                     </TableCell>
                   </TableRow>
                 ))}
