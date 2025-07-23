@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Badge,
   Button,
@@ -23,30 +23,36 @@ import {
 } from "../../../components";
 import { CheckSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
+import axios from "axios";
+import { userId } from "@/utils";
 
 interface Task {
-  id: string;
+  task_id: string;
   name: string;
   description: string;
-  status: "aberto" | "em_andamento" | "concluido";
-  projectId: string;
-  createdAt: string;
-  relatedTasks: string[];
+  status: "OPEN" | "IN_PROGRESS" | "CLOSED";
+  project_id: string;
+  dependencies: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 interface Project {
-  id: string;
+  project_id: string;
   name: string;
 }
 
 export default function CreateTask() {
   const router = useRouter();
 
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [existingTasks, setExistingTasks] = useState<Task[]>([]);
+  const [dependencies, setDependencies] = useState<string[]>([]);
+
   const [taskData, setTaskData] = useState({
     name: "",
     description: "",
     projectId: "",
-    relatedTasks: [] as string[],
   });
 
   const [errors, setErrors] = useState({
@@ -55,49 +61,61 @@ export default function CreateTask() {
     projectId: "",
   });
 
-  // TODO: Remover mock e integrar com o backend
-  const projects: Project[] = [
-    { id: "PROJ", name: "Sistema de Gestão" },
-    { id: "WEB", name: "Website Corporativo" },
-    { id: "MOB", name: "App Mobile" },
-  ];
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get<Project[]>(
+        `http://0.0.0.0:8000/${userId}/project`
+      );
+      setProjects(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
-  // TODO: Remover mock e integrar com o backend
-  const existingTasks: Task[] = [
-    {
-      id: "TASK-001",
-      name: "Configurar banco de dados",
-      description: "Configurar estrutura inicial do banco de dados",
-      status: "concluido",
-      projectId: "PROJ",
-      createdAt: "2025-01-10",
-      relatedTasks: [],
-    },
-    {
-      id: "TASK-002",
-      name: "Criar API de autenticação",
-      description: "Implementar sistema de login e autenticação",
-      status: "em_andamento",
-      projectId: "PROJ",
-      createdAt: "2025-01-12",
-      relatedTasks: ["TASK-001"],
-    },
-    {
-      id: "TASK-003",
-      name: "Design da homepage",
-      description: "Criar layout e design da página inicial",
-      status: "aberto",
-      projectId: "WEB",
-      createdAt: "2025-01-15",
-      relatedTasks: [],
-    },
-  ];
+  const fetchExistingTasks = async (project_id: string) => {
+    try {
+      const response = await axios.get<Task[]>(
+        `http://0.0.0.0:8000/${userId}/task?project=${project_id}`
+      );
+      setExistingTasks(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const createTask = async () => {
+    try {
+      await axios.post<Task>(`http://0.0.0.0:8000/${userId}/task`, {
+        name: taskData.name,
+        description: taskData.description,
+        project_id: taskData.projectId,
+        status: "OPEN",
+        dependencies,
+      });
+
+      alert("Tarefa criada com sucesso!");
+      handleCancel();
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao criar tarefa. Tente novamente.");
+    }
+  };
+
+  useEffect(() => {
+    const { projectId } = taskData;
+
+    fetchProjects();
+
+    if (projectId) {
+      fetchExistingTasks(projectId);
+    }
+  }, [taskData]);
 
   const getStatusBadge = (status: Task["status"]) => {
     const statusConfig = {
-      aberto: { variant: "secondary" as const, label: "Aberto" },
-      em_andamento: { variant: "default" as const, label: "Em Andamento" },
-      concluido: { variant: "outline" as const, label: "Concluído" },
+      OPEN: { variant: "secondary" as const, label: "Aberto" },
+      IN_PROGRESS: { variant: "default" as const, label: "Em Andamento" },
+      CLOSED: { variant: "outline" as const, label: "Concluído" },
     };
 
     const config = statusConfig[status];
@@ -116,13 +134,13 @@ export default function CreateTask() {
     };
 
     if (!taskData.name.trim()) {
-      newErrors.name = "Nome da tarefa é obrigatório";
+      newErrors.name = "Campo obrigatório";
     }
     if (!taskData.description.trim()) {
-      newErrors.description = "Descrição é obrigatória";
+      newErrors.description = "Campo obrigatório";
     }
     if (!taskData.projectId) {
-      newErrors.projectId = "Projeto é obrigatório";
+      newErrors.projectId = "Campo obrigatório";
     }
 
     setErrors(newErrors);
@@ -131,18 +149,19 @@ export default function CreateTask() {
 
   const handleInputChange = (field: string, value: string) => {
     setTaskData((prev) => ({ ...prev, [field]: value }));
+    console.log({ field, value });
     if (errors[field as keyof typeof errors]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
   const handleRelatedTaskCheck = (taskId: string, checked: boolean) => {
-    setTaskData((prev) => ({
-      ...prev,
-      relatedTasks: checked
-        ? [...prev.relatedTasks, taskId]
-        : prev.relatedTasks.filter((id) => id !== taskId),
-    }));
+    setDependencies((prev) => {
+      if (checked) {
+        return [...prev, taskId];
+      }
+      return prev;
+    });
   };
 
   const handleCancel = () => {
@@ -150,7 +169,6 @@ export default function CreateTask() {
       name: "",
       description: "",
       projectId: "",
-      relatedTasks: [],
     });
     setErrors({ name: "", description: "", projectId: "" });
     router.push("/");
@@ -159,22 +177,12 @@ export default function CreateTask() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      const newTask = {
-        ...taskData,
-        id: `TASK-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`,
-        status: "aberto" as const,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-
-      // TODO: Integrar com backend para atualizar o projeto
-      console.log("Tarefa criada:", newTask);
-      alert("Tarefa criada com sucesso!");
-      handleCancel();
+      createTask();
     }
   };
 
   const availableTasks = existingTasks.filter((task) =>
-    taskData.projectId ? task.projectId === taskData.projectId : true
+    taskData.projectId ? task.project_id === taskData.projectId : true
   );
 
   return (
@@ -213,10 +221,13 @@ export default function CreateTask() {
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
+                    <SelectItem
+                      key={project.project_id}
+                      value={project.project_id}
+                    >
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="font-mono text-xs">
-                          {project.id}
+                          {project.project_id}
                         </Badge>
                         {project.name}
                       </div>
@@ -274,19 +285,24 @@ export default function CreateTask() {
                 <Separator />
                 <div className="space-y-4">
                   <div>
-                    <Label>Tarefas Relacionadas (Opcional)</Label>
+                    <Label>Dependências (Opcional)</Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Selecione tarefas que são dependências
+                      Selecione tarefas que são previamente necessárias
                     </p>
                   </div>
                   <div className="space-y-3 max-h-48 overflow-y-auto">
                     {availableTasks.map((task) => (
-                      <div key={task.id} className="flex items-start space-x-3">
+                      <div
+                        key={task.task_id}
+                        className="flex items-start space-x-3"
+                      >
                         <Checkbox
-                          id={`task-${task.id}`}
-                          checked={taskData.relatedTasks.includes(task.id)}
+                          id={`task-${task.task_id}`}
                           onCheckedChange={(checked) =>
-                            handleRelatedTaskCheck(task.id, checked as boolean)
+                            handleRelatedTaskCheck(
+                              task.task_id,
+                              checked as boolean
+                            )
                           }
                         />
                         <div className="flex-1 min-w-0">
@@ -295,12 +311,12 @@ export default function CreateTask() {
                               variant="outline"
                               className="font-mono text-xs"
                             >
-                              {task.id}
+                              {task.task_id}
                             </Badge>
                             {getStatusBadge(task.status)}
                           </div>
                           <Label
-                            htmlFor={`task-${task.id}`}
+                            htmlFor={`task-${task.task_id}`}
                             className="cursor-pointer"
                           >
                             {task.name}
