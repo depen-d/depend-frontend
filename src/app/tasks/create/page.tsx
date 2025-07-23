@@ -21,7 +21,7 @@ import {
   Separator,
   Textarea,
 } from "../../../components";
-import { ArrowLeft, CheckSquare } from "lucide-react";
+import { CheckSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Task {
@@ -39,21 +39,13 @@ interface Project {
   name: string;
 }
 
-interface CreateTaskProps {
-  onBack?: () => void;
-  selectedProjectId?: string;
-}
-
-export default function CreateTask({
-  onBack,
-  selectedProjectId,
-}: CreateTaskProps) {
+export default function CreateTask() {
   const router = useRouter();
 
   const [taskData, setTaskData] = useState({
     name: "",
     description: "",
-    projectId: selectedProjectId || "",
+    projectId: "",
     relatedTasks: [] as string[],
   });
 
@@ -157,7 +149,7 @@ export default function CreateTask({
     setTaskData({
       name: "",
       description: "",
-      projectId: selectedProjectId || "",
+      projectId: "",
       relatedTasks: [],
     });
     setErrors({ name: "", description: "", projectId: "" });
@@ -187,17 +179,6 @@ export default function CreateTask({
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      {onBack && (
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="mb-6 gap-2 p-0 h-auto"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </Button>
-      )}
-
       <div className="mb-8">
         <h1 className="mb-2">Criar nova tarefa</h1>
         <p className="text-muted-foreground">
@@ -224,7 +205,6 @@ export default function CreateTask({
               <Select
                 value={taskData.projectId}
                 onValueChange={(value) => handleInputChange("projectId", value)}
-                disabled={!!selectedProjectId}
               >
                 <SelectTrigger
                   className={errors.projectId ? "border-destructive" : ""}
@@ -246,11 +226,6 @@ export default function CreateTask({
               </Select>
               {errors.projectId && (
                 <p className="text-sm text-destructive">{errors.projectId}</p>
-              )}
-              {selectedProjectId && (
-                <p className="text-xs text-muted-foreground">
-                  Projeto selecionado automaticamente
-                </p>
               )}
             </div>
 

@@ -15,13 +15,11 @@ import {
   Separator,
   Textarea,
 } from "../../../components";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-interface CreateProjectProps {
-  onBack?: () => void;
-}
+export default function CreateProject() {
+  const router = useRouter();
 
-export default function CreateProject({ onBack }: CreateProjectProps) {
   const [projectData, setProjectData] = useState({
     id: "",
     name: "",
@@ -66,19 +64,13 @@ export default function CreateProject({ onBack }: CreateProjectProps) {
       // TODO: Integrar com o backend
       alert("Projeto criado com sucesso!");
       handleCancel();
-
-      if (onBack) {
-        onBack();
-      }
     }
   };
 
   const handleCancel = () => {
     setProjectData({ id: "", name: "", description: "" });
     setErrors({ id: "", name: "", description: "" });
-    if (onBack) {
-      onBack();
-    }
+    router.push("/projects/list");
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -90,17 +82,6 @@ export default function CreateProject({ onBack }: CreateProjectProps) {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      {onBack && (
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="mb-6 gap-2 p-0 h-auto"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para projetos
-        </Button>
-      )}
-
       <div className="mb-8">
         <h1 className="mb-2">Criar novo projeto</h1>
         <p className="text-muted-foreground">

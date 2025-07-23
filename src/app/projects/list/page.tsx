@@ -26,11 +26,7 @@ interface Project {
   tasks: string[];
 }
 
-interface ProjectListProps {
-  onViewProject?: (projectId: string) => void;
-}
-
-export default function ProjectList({ onViewProject }: ProjectListProps) {
+export default function ProjectList() {
   // TODO: Remover mock e integrar com o backend
   const projects: Project[] = [
     {
@@ -72,6 +68,10 @@ export default function ProjectList({ onViewProject }: ProjectListProps) {
 
   const onCreateNewTask = () => {
     router.push("/tasks/create");
+  };
+
+  const onProjectClick = (projectId: string) => {
+    router.push(`/projects/${projectId}/tasks`);
   };
 
   return (
@@ -135,7 +135,7 @@ export default function ProjectList({ onViewProject }: ProjectListProps) {
                   <TableRow
                     key={project.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => onViewProject?.(project.id)}
+                    onClick={() => onProjectClick(project.id)}
                   >
                     <TableCell>
                       <Badge variant="outline" className="font-mono">
