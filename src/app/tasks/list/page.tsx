@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   AlertDescription,
@@ -22,21 +22,23 @@ import {
 } from "../../../components";
 import { CheckSquare, Plus, AlertTriangle } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import axios from "axios";
+import { userId } from "@/utils";
 
 interface Task {
-  id: string;
+  task_id: string;
   name: string;
   description: string;
-  status: "aberto" | "em_andamento" | "concluido";
-  projectId: string;
-  createdAt: string;
-  relatedTasks: string[];
+  status: "OPEN" | "IN_PROGRESS" | "CLOSED";
+  dependencies: string[];
+  project_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Project {
-  id: string;
+  project_id: string;
   name: string;
-  description: string;
 }
 
 export default function TaskList() {
@@ -45,65 +47,49 @@ export default function TaskList() {
 
   const projectId = pathname.split("/")[2];
 
-  const project: Project = {
-    id: projectId,
-    name:
-      projectId === "PROJ"
-        ? "Sistema de Gestão"
-        : projectId === "WEB"
-        ? "Website Corporativo"
-        : "App Mobile",
-    description: "Descrição do projeto",
+  const [project, setProject] = useState<Project>();
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  const fetchProject = async () => {
+    try {
+      const response = await axios.get<Project[]>(
+        `http://0.0.0.0:8000/${userId}/project`
+      );
+      const correctProject = response.data.find(
+        (proj) => proj.project_id === projectId
+      );
+      setProject(correctProject);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  // TODO: Integrar com o backend
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "TASK-001",
-      name: "Configurar banco de dados",
-      description: "Configurar estrutura inicial do banco de dados",
-      status: "concluido",
-      projectId: projectId,
-      createdAt: "2025-01-10",
-      relatedTasks: [],
-    },
-    {
-      id: "TASK-002",
-      name: "Criar API de autenticação",
-      description: "Implementar sistema de login e autenticação",
-      status: "em_andamento",
-      projectId: projectId,
-      createdAt: "2025-01-12",
-      relatedTasks: ["TASK-001"],
-    },
-    {
-      id: "TASK-003",
-      name: "Design da homepage",
-      description: "Criar layout e design da página inicial",
-      status: "aberto",
-      projectId: projectId,
-      createdAt: "2025-01-15",
-      relatedTasks: [],
-    },
-    {
-      id: "TASK-004",
-      name: "Implementar tela de login",
-      description: "Desenvolver interface de usuário para login",
-      status: "aberto",
-      projectId: projectId,
-      createdAt: "2025-01-16",
-      relatedTasks: ["TASK-002"],
-    },
-    {
-      id: "TASK-005",
-      name: "Testes de integração",
-      description: "Executar testes completos do sistema",
-      status: "aberto",
-      projectId: projectId,
-      createdAt: "2025-01-17",
-      relatedTasks: ["TASK-002", "TASK-004"],
-    },
-  ]);
+  const fetchTasks = async () => {
+    try {
+      const response = await axios.get<Task[]>(
+        `http://0.0.0.0:8000/${userId}/task?project=${projectId}`
+      );
+      setTasks(response.data);
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  };
+
+  const updateTask = async (taskId: string, newStatus: Task["status"]) => {
+    try {
+      await axios.patch(`http://0.0.0.0:8000/${userId}/task/${taskId}`, {
+        status: newStatus,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchProject();
+    fetchTasks();
+  }, []);
 
   const [alertDialog, setAlertDialog] = useState<{
     open: boolean;
@@ -113,7 +99,7 @@ export default function TaskList() {
   }>({
     open: false,
     taskId: "",
-    newStatus: "aberto",
+    newStatus: "OPEN",
     conflictingTasks: [],
   });
 
@@ -121,19 +107,19 @@ export default function TaskList() {
 
   const statusColumns = [
     {
-      id: "aberto" as const,
+      id: "OPEN" as const,
       title: "Aberto",
       description: "Backlog",
       variant: "secondary" as const,
     },
     {
-      id: "em_andamento" as const,
+      id: "IN_PROGRESS" as const,
       title: "Em Andamento",
       description: "Tarefas sendo executadas",
       variant: "default" as const,
     },
     {
-      id: "concluido" as const,
+      id: "CLOSED" as const,
       title: "Concluído",
       description: "Tarefas finalizadas",
       variant: "outline" as const,
@@ -144,30 +130,42 @@ export default function TaskList() {
     router.push("/tasks/create");
   };
 
+  console.log(tasks);
+
   const getTasksByStatus = (status: Task["status"]) => {
     return tasks.filter((task) => task.status === status);
   };
 
-  const checkRelatedTasksConflict = (
+  const checkRelatedTasksConflict = async (
     taskId: string,
     newStatus: Task["status"]
   ) => {
-    if (newStatus !== "concluido") return [];
+    if (newStatus !== "CLOSED") return [];
 
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task?.relatedTasks.length) return [];
+    const task = tasks.find((t) => t.task_id === taskId);
+
+    if (!task?.dependencies?.length) return [];
 
     const conflictingTasks = tasks.filter(
       (t) =>
-        task.relatedTasks.includes(t.id) &&
-        (t.status === "aberto" || t.status === "em_andamento")
+        task.dependencies.includes(t.task_id) &&
+        (t.status === "OPEN" || t.status === "IN_PROGRESS")
     );
 
     return conflictingTasks;
   };
 
-  const moveTask = (taskId: string, newStatus: Task["status"]) => {
-    const conflictingTasks = checkRelatedTasksConflict(taskId, newStatus);
+  const updateTaskStatus = (taskId: string, newStatus: Task["status"]) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.task_id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
+    updateTask(taskId, newStatus);
+  };
+
+  const moveTask = async (taskId: string, newStatus: Task["status"]) => {
+    const conflictingTasks = await checkRelatedTasksConflict(taskId, newStatus);
 
     if (conflictingTasks.length > 0) {
       setAlertDialog({
@@ -182,14 +180,6 @@ export default function TaskList() {
     updateTaskStatus(taskId, newStatus);
   };
 
-  const updateTaskStatus = (taskId: string, newStatus: Task["status"]) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
-  };
-
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     setDraggedTask(taskId);
     e.dataTransfer.effectAllowed = "move";
@@ -200,16 +190,19 @@ export default function TaskList() {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: Task["status"]) => {
+  const handleDrop = async (e: React.DragEvent, newStatus: Task["status"]) => {
     e.preventDefault();
     if (draggedTask) {
-      moveTask(draggedTask, newStatus);
+      await moveTask(draggedTask, newStatus);
       setDraggedTask(null);
     }
   };
 
-  const handleStatusChange = (taskId: string, newStatus: Task["status"]) => {
-    moveTask(taskId, newStatus);
+  const handleStatusChange = async (
+    taskId: string,
+    newStatus: Task["status"]
+  ) => {
+    await moveTask(taskId, newStatus);
   };
 
   const handleConfirmMove = () => {
@@ -217,7 +210,7 @@ export default function TaskList() {
     setAlertDialog({
       open: false,
       taskId: "",
-      newStatus: "aberto",
+      newStatus: "OPEN",
       conflictingTasks: [],
     });
   };
@@ -244,9 +237,9 @@ export default function TaskList() {
         <div>
           <div className="flex items-center gap-3 mb-2">
             <Badge variant="outline" className="font-mono">
-              {project.id}
+              {project?.project_id}
             </Badge>
-            <h1>{project.name}</h1>
+            <h1>{project?.name}</h1>
           </div>
           <p className="text-muted-foreground">
             Visualize e gerencie o progresso das tarefas
@@ -283,22 +276,22 @@ export default function TaskList() {
             <div
               className="min-h-[400px] space-y-3"
               onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, column.id)}
+              onDrop={async (e) => await handleDrop(e, column.id)}
             >
               {getTasksByStatus(column.id).map((task) => (
                 <Card
-                  key={task.id}
+                  key={task.task_id}
                   className="cursor-move hover:shadow-md transition-shadow"
                   draggable
-                  onDragStart={(e) => handleDragStart(e, task.id)}
+                  onDragStart={(e) => handleDragStart(e, task.task_id)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <Badge variant="outline" className="font-mono text-xs">
-                        {task.id}
+                        {task.task_id}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {formatDate(task.createdAt)}
+                        {formatDate(task.created_at)}
                       </span>
                     </div>
                     <CardTitle className="text-sm leading-tight">
@@ -310,26 +303,26 @@ export default function TaskList() {
                       {task.description}
                     </p>
 
-                    {task.relatedTasks.length > 0 && (
+                    {task.dependencies?.length > 0 && (
                       <div className="mb-8">
                         <p className="text-xs text-muted-foreground mb-1">
                           Depende:
                         </p>
                         <div className="flex flex-wrap gap-1">
-                          {task.relatedTasks.map((relatedId) => {
+                          {task.dependencies?.map((dependency) => {
                             const relatedTask = tasks.find(
-                              (t) => t.id === relatedId
+                              (t) => t.task_id === dependency
                             );
                             return relatedTask ? (
                               <div
-                                key={relatedId}
+                                key={dependency}
                                 className="flex items-center gap-1"
                               >
                                 <Badge
                                   variant="outline"
                                   className="text-xs font-mono"
                                 >
-                                  {relatedId}
+                                  {dependency}
                                 </Badge>
                                 {getStatusBadge(relatedTask.status)}
                               </div>
@@ -340,37 +333,42 @@ export default function TaskList() {
                     )}
 
                     <div className="flex gap-1">
-                      {column.id !== "aberto" && (
+                      {column.id !== "OPEN" && (
                         <Button
                           variant="outline"
                           size="sm"
                           className="text-xs h-7 cursor-pointer"
-                          onClick={() => handleStatusChange(task.id, "aberto")}
+                          onClick={async () =>
+                            await handleStatusChange(task.task_id, "OPEN")
+                          }
                         >
                           ← Aberto
                         </Button>
                       )}
-                      {column.id !== "em_andamento" && (
+                      {column.id !== "IN_PROGRESS" && (
                         <Button
                           variant="outline"
                           size="sm"
                           className="text-xs h-7 cursor-pointer"
-                          onClick={() =>
-                            handleStatusChange(task.id, "em_andamento")
+                          onClick={async () =>
+                            await handleStatusChange(
+                              task.task_id,
+                              "IN_PROGRESS"
+                            )
                           }
                         >
-                          {column.id === "aberto"
+                          {column.id === "OPEN"
                             ? "Iniciar →"
                             : "← Em Andamento"}
                         </Button>
                       )}
-                      {column.id !== "concluido" && (
+                      {column.id !== "CLOSED" && (
                         <Button
                           variant="outline"
                           size="sm"
                           className="text-xs h-7 cursor-pointer"
-                          onClick={() =>
-                            handleStatusChange(task.id, "concluido")
+                          onClick={async () =>
+                            await handleStatusChange(task.task_id, "CLOSED")
                           }
                         >
                           Concluir →
@@ -414,12 +412,12 @@ export default function TaskList() {
             <h4 className="mb-2">Dependências:</h4>
             <div className="space-y-2">
               {alertDialog.conflictingTasks.map((task) => (
-                <Alert key={task.id}>
+                <Alert key={task.task_id}>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="flex items-center justify-between">
                     <div>
-                      <span className="font-mono text-xs">{task.id}</span> -{" "}
-                      {task.name}
+                      <span className="font-mono text-xs">{task.task_id}</span>{" "}
+                      - {task.name}
                     </div>
                     {getStatusBadge(task.status)}
                   </AlertDescription>
